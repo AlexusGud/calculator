@@ -295,3 +295,6 @@ src/GraphControl/GraphingImplOverrides.props
 !src/x64
 !src/x86
 !src/out
+
+# Rust build output
+/rust-port/target/
