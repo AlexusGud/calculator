@@ -1,0 +1,887 @@
+import { ComboBox, ScrollView } from "std-widgets.slint";
+
+    component CalculatorKey inherits Rectangle {
+        in property <string> label;
+        in property <bool> accent: false;
+        in property <bool> operation: false;
+        in property <bool> selected: false;
+        callback clicked();
+
+        min-width: 24px;
+        min-height: 36px;
+        preferred-height: 52px;
+        vertical-stretch: 1;
+        border-radius: 2px;
+        border-width: 1px;
+        border-color: accent ? #0078d4 : (selected ? #8abbe6 : #e6e6e6);
+        background: touch.has-hover
+            ? (accent ? #1688dc : #e5e5e5)
+            : (accent ? #0078d4 : (selected ? #e5f1fb : (operation ? #f1f1f1 : #fafafa)));
+
+        Text {
+            text: label;
+            color: accent ? #ffffff : #202020;
+            font-family: "Segoe UI";
+            font-size: 24px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+        touch := TouchArea {
+            clicked => { root.clicked(); }
+        }
+    }
+
+    component NavigationKey inherits Rectangle {
+        in property <string> icon;
+        in property <string> label;
+        in property <bool> selected: false;
+        in property <bool> expanded: false;
+        in property <bool> disabled: false;
+        callback clicked();
+
+        width: expanded ? 196px : 48px;
+        height: 40px;
+        opacity: disabled ? 0.45 : 1;
+        border-radius: 4px;
+        background: selected ? #e5f1fb : (touch.has-hover ? #ededed : transparent);
+        HorizontalLayout {
+            spacing: 10px;
+            padding-left: 12px;
+            padding-right: 8px;
+            Text {
+                text: icon;
+                width: 24px;
+                color: selected ? #0067b8 : #404040;
+                font-family: "Segoe UI";
+                font-size: 18px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+            if root.expanded: Text {
+                text: label;
+                color: selected ? #0067b8 : #303030;
+                font-family: "Segoe UI";
+                font-size: 14px;
+                vertical-alignment: center;
+            }
+        }
+        touch := TouchArea {
+            clicked => { if (!root.disabled) { root.clicked(); } }
+        }
+    }
+
+    export component MainWindow inherits Window {
+        title: "Calculator";
+        preferred-width: 1000px;
+        preferred-height: 760px;
+        min-width: 620px;
+        min-height: 580px;
+        background: #f3f3f3;
+
+        in-out property <string> mode: "Standard";
+        in-out property <string> display: "0";
+        in-out property <string> expression: "";
+        in-out property <string> status: "Standard";
+        in-out property <string> history-text: "No history yet";
+        in-out property <string> memory-text: "Memory is empty";
+        in-out property <string> programmer-bits: "";
+        in-out property <string> programmer-radix: "DEC";
+        in-out property <string> programmer-word-size: "64-bit";
+        in-out property <bool> show-history: false;
+        in-out property <bool> show-memory: false;
+        in-out property <bool> expanded-nav: false;
+        in-out property <bool> degrees: true;
+        in-out property <string> converter-category: "Length";
+        in property <[string]> converter-units: [];
+        in-out property <string> converter-from: "Meter";
+        in-out property <string> converter-to: "Foot";
+        in-out property <int> converter-from-index: 1;
+        in-out property <int> converter-to-index: 6;
+        in-out property <string> converter-result: "";
+
+        callback action(string);
+        callback select-mode(string);
+
+        HorizontalLayout {
+            spacing: 0px;
+
+            Rectangle {
+                width: root.expanded-nav ? 220px : 64px;
+                background: #f7f7f7;
+                border-color: #e8e8e8;
+                border-width: 0px;
+
+                VerticalLayout {
+                    spacing: 4px;
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    padding-top: 12px;
+
+                    NavigationKey {
+                        icon: "☰";
+                        label: "Menu";
+                        expanded: root.expanded-nav;
+                        clicked => { root.action("nav"); }
+                    }
+                    ScrollView {
+                        vertical-stretch: 1;
+                        min-height: 120px;
+                        VerticalLayout {
+                            alignment: start;
+                            spacing: 4px;
+                            if root.expanded-nav: Text {
+                                text: "Calculator";
+                                height: 28px;
+                                color: #666666;
+                                font-family: "Segoe UI";
+                                font-size: 12px;
+                                vertical-alignment: center;
+                            }
+                            NavigationKey {
+                                icon: "＋";
+                                label: "Standard";
+                                expanded: root.expanded-nav;
+                                selected: root.mode == "Standard";
+                                clicked => { root.select-mode("Standard"); }
+                            }
+                            NavigationKey {
+                                icon: "ƒ";
+                                label: "Scientific";
+                                expanded: root.expanded-nav;
+                                selected: root.mode == "Scientific";
+                                clicked => { root.select-mode("Scientific"); }
+                            }
+                            NavigationKey {
+                                icon: "⌁";
+                                label: "Graphing";
+                                expanded: root.expanded-nav;
+                                disabled: true;
+                                clicked => { root.action("not-implemented"); }
+                            }
+                            NavigationKey {
+                                icon: "▦";
+                                label: "Programmer";
+                                expanded: root.expanded-nav;
+                                selected: root.mode == "Programmer";
+                                clicked => { root.select-mode("Programmer"); }
+                            }
+                            NavigationKey {
+                                icon: "◷";
+                                label: "Date calculation";
+                                expanded: root.expanded-nav;
+                                selected: root.mode == "Date";
+                                clicked => { root.select-mode("Date"); }
+                            }
+                            if root.expanded-nav: Text {
+                                text: "Converters";
+                                height: 28px;
+                                color: #666666;
+                                font-family: "Segoe UI";
+                                font-size: 12px;
+                                vertical-alignment: center;
+                            }
+                            NavigationKey {
+                                icon: "◉";
+                                label: "Currency";
+                                expanded: root.expanded-nav;
+                                disabled: true;
+                                clicked => { root.select-mode("Currency"); }
+                            }
+                            NavigationKey {
+                                icon: "◌";
+                                label: "Volume";
+                                expanded: root.expanded-nav;
+                                selected: root.mode == "Converter" && root.converter-category == "Volume";
+                                clicked => { root.select-mode("Volume"); }
+                            }
+                            NavigationKey {
+                                icon: "↔";
+                                label: "Length";
+                                expanded: root.expanded-nav;
+                                selected: root.mode == "Converter" && root.converter-category == "Length";
+                                clicked => { root.select-mode("Length"); }
+                            }
+                            NavigationKey {
+                                icon: "⚖";
+                                label: "Weight and Mass";
+                                expanded: root.expanded-nav;
+                                selected: root.mode == "Converter" && root.converter-category == "Mass";
+                                clicked => { root.select-mode("Weight and Mass"); }
+                            }
+                            NavigationKey {
+                                icon: "℃";
+                                label: "Temperature";
+                                expanded: root.expanded-nav;
+                                selected: root.mode == "Converter" && root.converter-category == "Temperature";
+                                clicked => { root.select-mode("Temperature"); }
+                            }
+                            NavigationKey {
+                                icon: "ϟ";
+                                label: "Energy";
+                                expanded: root.expanded-nav;
+                                selected: root.mode == "Converter" && root.converter-category == "Energy";
+                                clicked => { root.select-mode("Energy"); }
+                            }
+                            NavigationKey {
+                                icon: "▧";
+                                label: "Area";
+                                expanded: root.expanded-nav;
+                                selected: root.mode == "Converter" && root.converter-category == "Area";
+                                clicked => { root.select-mode("Area"); }
+                            }
+                            NavigationKey {
+                                icon: "↗";
+                                label: "Speed";
+                                expanded: root.expanded-nav;
+                                selected: root.mode == "Converter" && root.converter-category == "Speed";
+                                clicked => { root.select-mode("Speed"); }
+                            }
+                            NavigationKey {
+                                icon: "◷";
+                                label: "Time";
+                                expanded: root.expanded-nav;
+                                selected: root.mode == "Converter" && root.converter-category == "Time";
+                                clicked => { root.select-mode("Time"); }
+                            }
+                            NavigationKey {
+                                icon: "ϟ";
+                                label: "Power";
+                                expanded: root.expanded-nav;
+                                selected: root.mode == "Converter" && root.converter-category == "Power";
+                                clicked => { root.select-mode("Power"); }
+                            }
+                            NavigationKey {
+                                icon: "▤";
+                                label: "Data";
+                                expanded: root.expanded-nav;
+                                selected: root.mode == "Converter" && root.converter-category == "Data";
+                                clicked => { root.select-mode("Data"); }
+                            }
+                            NavigationKey {
+                                icon: "▱";
+                                label: "Pressure";
+                                expanded: root.expanded-nav;
+                                selected: root.mode == "Converter" && root.converter-category == "Pressure";
+                                clicked => { root.select-mode("Pressure"); }
+                            }
+                            NavigationKey {
+                                icon: "∠";
+                                label: "Angle";
+                                expanded: root.expanded-nav;
+                                selected: root.mode == "Converter" && root.converter-category == "Angle";
+                                clicked => { root.select-mode("Angle"); }
+                            }
+                        }
+                    }
+                    Rectangle { height: 1px; background: #dddddd; }
+                    NavigationKey {
+                        icon: "⚙";
+                        label: "Settings";
+                        expanded: root.expanded-nav;
+                        selected: root.mode == "Settings";
+                        clicked => { root.select-mode("Settings"); }
+                    }
+                }
+            }
+
+            VerticalLayout {
+                padding-left: 16px;
+                padding-right: 16px;
+                padding-top: 12px;
+                padding-bottom: 14px;
+                spacing: 7px;
+
+                HorizontalLayout {
+                    height: 46px;
+                    spacing: 12px;
+                    visible: root.mode != "Settings";
+                    Text {
+                        text: root.mode == "Converter" ? root.converter-category : root.mode;
+                        color: #202020;
+                        font-family: "Segoe UI";
+                        font-size: 24px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
+                    Rectangle { }
+                    CalculatorKey {
+                        width: 42px;
+                        label: "◴";
+                        operation: true;
+                        selected: root.show-history;
+                        clicked => { root.action("history"); }
+                    }
+                    CalculatorKey {
+                        width: 42px;
+                        label: "M";
+                        operation: true;
+                        selected: root.show-memory;
+                        clicked => { root.action("memory-panel"); }
+                    }
+                }
+
+                if root.mode != "Converter" && root.mode != "Settings": Rectangle {
+                    height: 132px;
+                    background: #f3f3f3;
+                    VerticalLayout {
+                        alignment: end;
+                        spacing: 3px;
+                        Text {
+                            text: root.expression;
+                            color: #777777;
+                            font-family: "Segoe UI";
+                            font-size: 16px;
+                            horizontal-alignment: right;
+                            overflow: elide;
+                        }
+                        TextInput {
+                            text <=> root.display;
+                            color: #202020;
+                            font-family: "Segoe UI";
+                            font-size: 48px;
+                            horizontal-alignment: right;
+                            accepted => { root.action("display-edited"); }
+                        }
+                        Text {
+                            text: root.status;
+                            color: #666666;
+                            font-family: "Segoe UI";
+                            font-size: 13px;
+                            horizontal-alignment: right;
+                            overflow: elide;
+                        }
+                    }
+                }
+                if root.mode == "Converter": Rectangle {
+                    height: 152px;
+                    background: #f3f3f3;
+                    VerticalLayout {
+                        alignment: end;
+                        spacing: 4px;
+                        Text {
+                            text: "From · " + root.converter-from;
+                            color: #666666;
+                            font-family: "Segoe UI";
+                            font-size: 13px;
+                        }
+                        TextInput {
+                            text <=> root.display;
+                            color: #202020;
+                            font-family: "Segoe UI";
+                            font-size: 34px;
+                            horizontal-alignment: right;
+                            accepted => { root.action("display-edited"); }
+                        }
+                        Text {
+                            text: "To · " + root.converter-to;
+                            color: #666666;
+                            font-family: "Segoe UI";
+                            font-size: 13px;
+                        }
+                        Text {
+                            text: root.converter-result;
+                            color: #202020;
+                            font-family: "Segoe UI";
+                            font-size: 28px;
+                            horizontal-alignment: right;
+                            overflow: elide;
+                        }
+                    }
+                }
+                if root.mode == "Settings": VerticalLayout {
+                    vertical-stretch: 1;
+                    spacing: 12px;
+                    Text {
+                        text: "Settings";
+                        color: #202020;
+                        font-family: "Segoe UI";
+                        font-size: 30px;
+                        font-weight: 600;
+                    }
+                    Text {
+                        text: "Calculator";
+                        color: #555555;
+                        font-family: "Segoe UI";
+                        font-size: 18px;
+                    }
+                    Rectangle {
+                        height: 92px;
+                        background: #fafafa;
+                        border-radius: 6px;
+                        border-width: 1px;
+                        border-color: #e6e6e6;
+                        HorizontalLayout {
+                            padding-left: 16px;
+                            padding-right: 16px;
+                            spacing: 12px;
+                            Text {
+                                text: "Angle units";
+                                color: #202020;
+                                font-family: "Segoe UI";
+                                font-size: 16px;
+                                vertical-alignment: center;
+                            }
+                            Rectangle { }
+                            CalculatorKey {
+                                width: 110px;
+                                label: root.degrees ? "Degrees" : "Radians";
+                                operation: true;
+                                selected: true;
+                                clicked => { root.action("angle-units"); }
+                            }
+                        }
+                    }
+                    Rectangle {
+                        height: 92px;
+                        background: #fafafa;
+                        border-radius: 6px;
+                        border-width: 1px;
+                        border-color: #e6e6e6;
+                        HorizontalLayout {
+                            padding-left: 16px;
+                            padding-right: 16px;
+                            spacing: 12px;
+                            Text {
+                                text: "App theme";
+                                color: #202020;
+                                font-family: "Segoe UI";
+                                font-size: 16px;
+                                vertical-alignment: center;
+                            }
+                            Rectangle { }
+                            CalculatorKey {
+                                width: 110px;
+                                label: "Light";
+                                operation: true;
+                                selected: true;
+                            }
+                        }
+                    }
+                    Rectangle { }
+                }
+
+                HorizontalLayout {
+                    height: 42px;
+                    spacing: 6px;
+                    visible: root.mode == "Standard"
+                        || root.mode == "Scientific"
+                        || root.mode == "Programmer";
+                    CalculatorKey { label: "MC"; operation: true; clicked => { root.action("MC"); } }
+                    CalculatorKey { label: "MR"; operation: true; clicked => { root.action("MR"); } }
+                    CalculatorKey { label: "M+"; operation: true; clicked => { root.action("M+"); } }
+                    CalculatorKey { label: "M−"; operation: true; clicked => { root.action("M-"); } }
+                    CalculatorKey { label: "MS"; operation: true; clicked => { root.action("MS"); } }
+                    Rectangle { }
+                }
+
+                if root.mode == "Programmer": Rectangle {
+                    height: 54px;
+                    background: #f3f3f3;
+                    Text {
+                        text: root.programmer-bits;
+                        color: #555555;
+                        font-family: "Consolas";
+                        font-size: 13px;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                        wrap: word-wrap;
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 12px;
+                    vertical-stretch: 1;
+                    visible: root.mode == "Scientific" || root.mode == "Programmer";
+
+                    VerticalLayout {
+                        preferred-width: 320px;
+                        min-width: 160px;
+                        max-width: 320px;
+                        spacing: 2px;
+                        visible: root.mode == "Scientific";
+                        HorizontalLayout {
+                            spacing: 2px;
+                            vertical-stretch: 1;
+                            CalculatorKey {
+                                label: root.degrees ? "DEG" : "RAD";
+                                operation: true;
+                                selected: root.degrees;
+                                clicked => { root.action("angle-units"); }
+                            }
+                            CalculatorKey { label: "2nd"; operation: true; clicked => { root.action("2nd"); } }
+                            CalculatorKey { label: "π"; operation: true; clicked => { root.action("π"); } }
+                            CalculatorKey { label: "e"; operation: true; clicked => { root.action("e"); } }
+                        }
+                        HorizontalLayout {
+                            spacing: 2px;
+                            vertical-stretch: 1;
+                            CalculatorKey { label: "sin"; operation: true; clicked => { root.action("sin"); } }
+                            CalculatorKey { label: "cos"; operation: true; clicked => { root.action("cos"); } }
+                            CalculatorKey { label: "tan"; operation: true; clicked => { root.action("tan"); } }
+                        }
+                        HorizontalLayout {
+                            spacing: 2px;
+                            vertical-stretch: 1;
+                            CalculatorKey { label: "x²"; operation: true; clicked => { root.action("x²"); } }
+                            CalculatorKey { label: "¹/x"; operation: true; clicked => { root.action("1/x"); } }
+                            CalculatorKey { label: "|x|"; operation: true; clicked => { root.action("abs"); } }
+                        }
+                        HorizontalLayout {
+                            spacing: 2px;
+                            vertical-stretch: 1;
+                            CalculatorKey { label: "10ˣ"; operation: true; clicked => { root.action("10ˣ"); } }
+                            CalculatorKey { label: "log"; operation: true; clicked => { root.action("log"); } }
+                            CalculatorKey { label: "ln"; operation: true; clicked => { root.action("ln"); } }
+                        }
+                        HorizontalLayout {
+                            spacing: 2px;
+                            vertical-stretch: 1;
+                            CalculatorKey { label: "x³"; operation: true; clicked => { root.action("x³"); } }
+                            CalculatorKey { label: "xʸ"; operation: true; clicked => { root.action("xʸ"); } }
+                            CalculatorKey { label: "eˣ"; operation: true; clicked => { root.action("eˣ"); } }
+                        }
+                        HorizontalLayout {
+                            spacing: 2px;
+                            vertical-stretch: 1;
+                            CalculatorKey { label: "n!"; operation: true; clicked => { root.action("n!"); } }
+                            CalculatorKey { label: "("; operation: true; clicked => { root.action("("); } }
+                            CalculatorKey { label: ")"; operation: true; clicked => { root.action(")"); } }
+                        }
+                        HorizontalLayout {
+                            spacing: 2px;
+                            vertical-stretch: 1;
+                            CalculatorKey { label: "asin"; operation: true; clicked => { root.action("asin"); } }
+                            CalculatorKey { label: "acos"; operation: true; clicked => { root.action("acos"); } }
+                            CalculatorKey { label: "atan"; operation: true; clicked => { root.action("atan"); } }
+                        }
+                        HorizontalLayout {
+                            spacing: 2px;
+                            vertical-stretch: 1;
+                            CalculatorKey { label: "sinh"; operation: true; clicked => { root.action("sinh"); } }
+                            CalculatorKey { label: "cosh"; operation: true; clicked => { root.action("cosh"); } }
+                            CalculatorKey { label: "tanh"; operation: true; clicked => { root.action("tanh"); } }
+                        }
+                    }
+
+                    VerticalLayout {
+                        preferred-width: 320px;
+                        min-width: 160px;
+                        max-width: 320px;
+                        spacing: 2px;
+                        visible: root.mode == "Programmer";
+                        HorizontalLayout {
+                            spacing: 2px;
+                            vertical-stretch: 1;
+                            CalculatorKey { label: "HEX"; operation: true; selected: root.programmer-radix == "HEX"; clicked => { root.action("HEX"); } }
+                            CalculatorKey { label: "DEC"; operation: true; selected: root.programmer-radix == "DEC"; clicked => { root.action("DEC"); } }
+                            CalculatorKey { label: "OCT"; operation: true; selected: root.programmer-radix == "OCT"; clicked => { root.action("OCT"); } }
+                        }
+                        HorizontalLayout {
+                            spacing: 2px;
+                            vertical-stretch: 1;
+                            CalculatorKey { label: "BIN"; operation: true; selected: root.programmer-radix == "BIN"; clicked => { root.action("BIN"); } }
+                            CalculatorKey { label: "8-bit"; operation: true; selected: root.programmer-word-size == "8-bit"; clicked => { root.action("word8"); } }
+                        }
+                        HorizontalLayout {
+                            spacing: 2px;
+                            vertical-stretch: 1;
+                            CalculatorKey { label: "AND"; operation: true; clicked => { root.action("AND"); } }
+                            CalculatorKey { label: "OR"; operation: true; clicked => { root.action("OR"); } }
+                            CalculatorKey { label: "XOR"; operation: true; clicked => { root.action("XOR"); } }
+                        }
+                        HorizontalLayout {
+                            spacing: 2px;
+                            vertical-stretch: 1;
+                            CalculatorKey { label: "NOT"; operation: true; clicked => { root.action("NOT"); } }
+                            CalculatorKey { label: "<<"; operation: true; clicked => { root.action("<<"); } }
+                            CalculatorKey { label: ">>"; operation: true; clicked => { root.action(">>"); } }
+                        }
+                        HorizontalLayout {
+                            spacing: 2px;
+                            vertical-stretch: 1;
+                            CalculatorKey { label: "A"; operation: true; clicked => { root.action("A"); } }
+                            CalculatorKey { label: "B"; operation: true; clicked => { root.action("B"); } }
+                            CalculatorKey { label: "C"; operation: true; clicked => { root.action("C"); } }
+                        }
+                        HorizontalLayout {
+                            spacing: 2px;
+                            vertical-stretch: 1;
+                            CalculatorKey { label: "D"; operation: true; clicked => { root.action("D"); } }
+                            CalculatorKey { label: "E"; operation: true; clicked => { root.action("E"); } }
+                            CalculatorKey { label: "F"; operation: true; clicked => { root.action("F"); } }
+                        }
+                        HorizontalLayout {
+                            spacing: 2px;
+                            vertical-stretch: 1;
+                            CalculatorKey { label: "16-bit"; operation: true; selected: root.programmer-word-size == "16-bit"; clicked => { root.action("word16"); } }
+                            CalculatorKey { label: "32-bit"; operation: true; selected: root.programmer-word-size == "32-bit"; clicked => { root.action("word32"); } }
+                            CalculatorKey { label: "64-bit"; operation: true; selected: root.programmer-word-size == "64-bit"; clicked => { root.action("word64"); } }
+                        }
+                        HorizontalLayout {
+                            spacing: 2px;
+                            vertical-stretch: 1;
+                            CalculatorKey { label: "("; operation: true; clicked => { root.action("("); } }
+                            CalculatorKey { label: ")"; operation: true; clicked => { root.action(")"); } }
+                            CalculatorKey { label: "±"; operation: true; clicked => { root.action("±"); } }
+                        }
+                    }
+
+                    VerticalLayout {
+                        min-width: 160px;
+                        max-width: 328px;
+                        spacing: 2px;
+                        HorizontalLayout {
+                            spacing: 2px;
+                            vertical-stretch: 1;
+                            CalculatorKey { label: "%"; operation: true; clicked => { root.action("%"); } }
+                            CalculatorKey { label: "CE"; operation: true; clicked => { root.action("CE"); } }
+                            CalculatorKey { label: "C"; operation: true; clicked => { root.action("C"); } }
+                            CalculatorKey { label: "⌫"; operation: true; clicked => { root.action("⌫"); } }
+                        }
+                        HorizontalLayout {
+                            spacing: 2px;
+                            vertical-stretch: 1;
+                            CalculatorKey { label: "¹/x"; operation: true; clicked => { root.action("1/x"); } }
+                            CalculatorKey { label: "x²"; operation: true; clicked => { root.action("x²"); } }
+                            CalculatorKey { label: "√x"; operation: true; clicked => { root.action("√x"); } }
+                            CalculatorKey { label: "÷"; operation: true; clicked => { root.action("÷"); } }
+                        }
+                        HorizontalLayout {
+                            spacing: 2px;
+                            vertical-stretch: 1;
+                            CalculatorKey { label: "7"; clicked => { root.action("7"); } }
+                            CalculatorKey { label: "8"; clicked => { root.action("8"); } }
+                            CalculatorKey { label: "9"; clicked => { root.action("9"); } }
+                            CalculatorKey { label: "×"; operation: true; clicked => { root.action("×"); } }
+                        }
+                        HorizontalLayout {
+                            spacing: 2px;
+                            vertical-stretch: 1;
+                            CalculatorKey { label: "4"; clicked => { root.action("4"); } }
+                            CalculatorKey { label: "5"; clicked => { root.action("5"); } }
+                            CalculatorKey { label: "6"; clicked => { root.action("6"); } }
+                            CalculatorKey { label: "−"; operation: true; clicked => { root.action("−"); } }
+                        }
+                        HorizontalLayout {
+                            spacing: 2px;
+                            vertical-stretch: 1;
+                            CalculatorKey { label: "1"; clicked => { root.action("1"); } }
+                            CalculatorKey { label: "2"; clicked => { root.action("2"); } }
+                            CalculatorKey { label: "3"; clicked => { root.action("3"); } }
+                            CalculatorKey { label: "+"; operation: true; clicked => { root.action("+"); } }
+                        }
+                        HorizontalLayout {
+                            spacing: 2px;
+                            vertical-stretch: 1;
+                            CalculatorKey { label: "±"; operation: true; clicked => { root.action("±"); } }
+                            CalculatorKey { label: "0"; clicked => { root.action("0"); } }
+                            CalculatorKey { label: "."; clicked => { root.action("."); } }
+                            CalculatorKey { label: "="; accent: true; clicked => { root.action("="); } }
+                        }
+                    }
+                }
+
+                VerticalLayout {
+                    min-width: 160px;
+                    spacing: 2px;
+                    vertical-stretch: 1;
+                    visible: root.mode == "Standard";
+                    HorizontalLayout {
+                        spacing: 2px;
+                        vertical-stretch: 1;
+                        CalculatorKey { label: "%"; operation: true; clicked => { root.action("%"); } }
+                        CalculatorKey { label: "CE"; operation: true; clicked => { root.action("CE"); } }
+                        CalculatorKey { label: "C"; operation: true; clicked => { root.action("C"); } }
+                        CalculatorKey { label: "⌫"; operation: true; clicked => { root.action("⌫"); } }
+                    }
+                    HorizontalLayout {
+                        spacing: 2px;
+                        vertical-stretch: 1;
+                        CalculatorKey { label: "¹/x"; operation: true; clicked => { root.action("1/x"); } }
+                        CalculatorKey { label: "x²"; operation: true; clicked => { root.action("x²"); } }
+                        CalculatorKey { label: "√x"; operation: true; clicked => { root.action("√x"); } }
+                        CalculatorKey { label: "÷"; operation: true; clicked => { root.action("÷"); } }
+                    }
+                    HorizontalLayout {
+                        vertical-stretch: 1;
+                        CalculatorKey { label: "7"; clicked => { root.action("7"); } }
+                        CalculatorKey { label: "8"; clicked => { root.action("8"); } }
+                        CalculatorKey { label: "9"; clicked => { root.action("9"); } }
+                        CalculatorKey { label: "×"; operation: true; clicked => { root.action("×"); } }
+                    }
+                    HorizontalLayout {
+                        vertical-stretch: 1;
+                        CalculatorKey { label: "4"; clicked => { root.action("4"); } }
+                        CalculatorKey { label: "5"; clicked => { root.action("5"); } }
+                        CalculatorKey { label: "6"; clicked => { root.action("6"); } }
+                        CalculatorKey { label: "−"; operation: true; clicked => { root.action("−"); } }
+                    }
+                    HorizontalLayout {
+                        vertical-stretch: 1;
+                        CalculatorKey { label: "1"; clicked => { root.action("1"); } }
+                        CalculatorKey { label: "2"; clicked => { root.action("2"); } }
+                        CalculatorKey { label: "3"; clicked => { root.action("3"); } }
+                        CalculatorKey { label: "+"; operation: true; clicked => { root.action("+"); } }
+                    }
+                    HorizontalLayout {
+                        vertical-stretch: 1;
+                        CalculatorKey { label: "±"; operation: true; clicked => { root.action("±"); } }
+                        CalculatorKey { label: "0"; clicked => { root.action("0"); } }
+                        CalculatorKey { label: "."; clicked => { root.action("."); } }
+                        CalculatorKey { label: "="; accent: true; clicked => { root.action("="); } }
+                    }
+                }
+
+                VerticalLayout {
+                    spacing: 2px;
+                    visible: root.mode == "Date";
+                    Text {
+                        text: "Date calculation";
+                        color: #202020;
+                        font-family: "Segoe UI";
+                        font-size: 24px;
+                    }
+                    Text {
+                        text: "Enter dates as YYYYMMDD, for example:";
+                        color: #666666;
+                        font-family: "Segoe UI";
+                        font-size: 15px;
+                    }
+                    CalculatorKey {
+                        height: 52px;
+                        label: "days(20240228,20240301)";
+                        clicked => { root.action("date-template"); }
+                    }
+                    CalculatorKey {
+                        height: 52px;
+                        label: "Calculate difference";
+                        accent: true;
+                        clicked => { root.action("="); }
+                    }
+                    CalculatorKey {
+                        height: 46px;
+                        label: "Insert comma";
+                        clicked => { root.action(","); }
+                    }
+                }
+
+                VerticalLayout {
+                    spacing: 8px;
+                    visible: root.mode == "Converter";
+                    Text {
+                        text: "From";
+                        color: #202020;
+                        font-family: "Segoe UI";
+                        font-size: 16px;
+                    }
+                    ComboBox {
+                        model: root.converter-units;
+                        current-index <=> root.converter-from-index;
+                        selected => { root.action("converter-from-selected"); }
+                    }
+                    CalculatorKey {
+                        height: 46px;
+                        label: "⇅ Swap units";
+                        operation: true;
+                        clicked => { root.action("converter-swap"); }
+                    }
+                    Text {
+                        text: "To";
+                        color: #202020;
+                        font-family: "Segoe UI";
+                        font-size: 16px;
+                    }
+                    ComboBox {
+                        model: root.converter-units;
+                        current-index <=> root.converter-to-index;
+                        selected => { root.action("converter-to-selected"); }
+                    }
+                }
+            }
+
+            if root.show-history || root.show-memory: Rectangle {
+                width: 232px;
+                background: #fafafa;
+                border-color: #e5e5e5;
+                border-width: 1px;
+                VerticalLayout {
+                    padding: 12px;
+                    spacing: 8px;
+                    HorizontalLayout {
+                        CalculatorKey {
+                            height: 40px;
+                            label: "History";
+                            operation: true;
+                            selected: root.show-history;
+                            clicked => { root.action("history"); }
+                        }
+                        CalculatorKey {
+                            height: 40px;
+                            label: "Memory";
+                            operation: true;
+                            selected: root.show-memory;
+                            clicked => { root.action("memory-panel"); }
+                        }
+                        CalculatorKey {
+                            width: 38px;
+                            height: 38px;
+                            label: "×";
+                            clicked => {
+                                if (root.show-history) { root.action("history"); }
+                                else { root.action("memory-panel"); }
+                            }
+                        }
+                    }
+                    if root.show-history: ScrollView {
+                        vertical-stretch: 1;
+                        min-height: 120px;
+                        Text {
+                            text: root.history-text;
+                            color: #444444;
+                            font-family: "Segoe UI";
+                            font-size: 14px;
+                            wrap: word-wrap;
+                            vertical-alignment: top;
+                        }
+                    }
+                    if root.show-memory: VerticalLayout {
+                        vertical-stretch: 1;
+                        spacing: 8px;
+                        if root.memory-text == "Memory is empty": Text {
+                            text: root.memory-text;
+                            color: #666666;
+                            font-family: "Segoe UI";
+                            font-size: 14px;
+                            vertical-alignment: top;
+                        }
+                        if root.memory-text != "Memory is empty": CalculatorKey {
+                            height: 52px;
+                            label: root.memory-text;
+                            operation: true;
+                            clicked => { root.action("MR"); }
+                        }
+                        Rectangle { }
+                        HorizontalLayout {
+                            height: 42px;
+                            spacing: 6px;
+                            CalculatorKey { label: "MC"; operation: true; clicked => { root.action("MC"); } }
+                            CalculatorKey { label: "MR"; operation: true; clicked => { root.action("MR"); } }
+                        }
+                        HorizontalLayout {
+                            height: 42px;
+                            spacing: 6px;
+                            CalculatorKey { label: "M+"; operation: true; clicked => { root.action("M+"); } }
+                            CalculatorKey { label: "M−"; operation: true; clicked => { root.action("M-"); } }
+                            CalculatorKey { label: "MS"; operation: true; clicked => { root.action("MS"); } }
+                        }
+                    }
+                    if root.show-history: CalculatorKey {
+                        height: 42px;
+                        label: "Clear history";
+                        operation: true;
+                        clicked => { root.action("clear-history"); }
+                    }
+                }
+            }
+        }
+    }
